@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>빗소리 탐구 활동 - 소리 세기 조절기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 1s ease-in-out, color 0.5s ease-in-out;
+        }
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+        
+        /* Custom Vertical Range Input Styling */
+        input[type=range].vertical-slider {
+            writing-mode: bt-lr; /* IE/Edge */
+            -webkit-appearance: slider-vertical; /* Chromium */
+            width: 24px;
+            height: 280px;
+            padding: 0 5px;
+        }
+
+        /* Dynamic Weather Background Gradients based on Intensity Level */
+        .bg-level-1 {
+            background: linear-gradient(to bottom, #7dd3fc, #bae6fd, #e0f2fe);
+            color: #0f172a;
+        }
+        .bg-level-2 {
+            background: linear-gradient(to bottom, #475569, #64748b, #94a3b8);
+            color: #f8fafc;
+        }
+        .bg-level-3 {
+            background: linear-gradient(to bottom, #1e293b, #334155, #475569);
+            color: #f8fafc;
+        }
+        .bg-level-4 {
+            background: linear-gradient(to bottom, #020617, #0f172a, #1e1b4b);
+            color: #f8fafc;
+        }
+
+        /* Animated SVG Cloud floating effects */
+        @keyframes cloudFloat {
+            0% { transform: translateX(-10%); }
+            50% { transform: translateX(10%); }
+            100% { transform: translateX(-10%); }
+        }
+        .animate-cloud-slow {
+            animation: cloudFloat 18s ease-in-out infinite;
+        }
+        .animate-cloud-fast {
+            animation: cloudFloat 8s ease-in-out infinite;
+        }
+
+        /* Pulse Animations for Activity Cue */
+        @keyframes pulse-gentle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        .pulse-activity {
+            animation: pulse-gentle 2s infinite ease-in-out;
+        }
+
+        /* Lightning Flash Effect */
+        .lightning-flash {
+            animation: flash 0.5s ease-out;
+        }
+        @keyframes flash {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.95; background-color: white; }
+        }
+    </style>
+</head>
+<body id="mainBody" class="bg-level-1 min-h-screen flex flex-col justify-between overflow-hidden relative transition-colors duration-1000">
+
+    <!-- Cloud Decorative Elements Layer -->
+    <div id="cloudContainer" class="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-90 transition-opacity duration-1000">
+        <!-- SVG Clouds injected dynamically via JS -->
+    </div>
+
+    <!-- Rain Animation Background Canvas -->
+    <canvas id="rainCanvas" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></canvas>
+    
+    <!-- Lightning Flash Overlay -->
+    <div id="lightningOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-none z-20 opacity-0 bg-white transition-opacity duration-100"></div>
+
+    <!-- Header Area -->
+    <header id="appHeader" class="relative z-30 w-full p-4 md:p-6 bg-white/40 backdrop-blur-md border-b border-white/30 flex justify-between items-center transition-all duration-500">
+        <div class="flex items-center space-x-3">
+            <div id="headerIconBox" class="p-3 bg-blue-500/20 text-blue-600 rounded-2xl border border-blue-400/30">
+                <i class="fa-solid font-bold fa-cloud-showers-heavy text-2xl md:text-3xl"></i>
+            </div>
+            <div>
+                <h1 id="headerTitle" class="text-xl md:text-2xl font-black font-jua tracking-wide text-slate-800">빗소리 구슬 그림 수업</h1>
+                <p id="headerSub" class="text-xs md:text-sm text-slate-600">빗소리의 세기를 듣고 구슬 트레이를 흔들어보아요!</p>
+            </div>
+        </div>
+
+        <!-- Audio Start/Stop Button -->
+        <button id="audioToggleBtn" onclick="toggleAudio()" class="px-5 py-2.5 md:px-6 md:py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg transition-all transform active:scale-95 flex items-center space-x-2">
+            <i id="audioBtnIcon" class="fa-solid fa-play"></i>
+            <span id="audioBtnText" class="font-jua text-lg">빗소리 시작하기</span>
+        </button>
+    </header>
+
+    <!-- Main Interactive Display -->
+    <main class="relative z-30 flex-1 container mx-auto px-4 py-4 flex flex-col lg:flex-row items-center justify-between gap-6 max-w-6xl">
+        
+        <!-- LEFT: Vertical Intensity Slider (수직선 세기 조절) -->
+        <section id="sliderCard" class="w-full lg:w-1/3 bg-white/60 backdrop-blur-md border border-white/50 p-6 rounded-3xl shadow-xl flex flex-col items-center transition-all duration-500">
+            <h2 id="sliderTitle" class="text-lg md:text-xl font-bold font-jua text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-sliders"></i> 수직선 세기 조절
+            </h2>
+
+            <div class="flex items-center justify-center gap-6 w-full py-2">
+                <!-- Vertical Slider Container -->
+                <div class="relative flex flex-col items-center">
+                    <span id="labelStrong" class="text-xs font-bold text-red-500 mb-2">강함 (100)</span>
+                    <input type="range" id="rainIntensitySlider" min="0" max="100" value="15" step="1" 
+                           class="vertical-slider cursor-pointer accent-blue-600" 
+                           oninput="onSliderChange(this.value)" disabled>
+                    <span id="labelWeak" class="text-xs font-bold text-blue-600 mt-2">약함 (0)</span>
+                </div>
+
+                <!-- Vertical Labels & Quick Indicator -->
+                <div class="flex flex-col justify-between h-[280px] py-1 font-jua">
+                    <button onclick="setIntensityPreset(95)" class="preset-btn px-3 py-1.5 rounded-xl bg-slate-800/10 hover:bg-red-500/20 text-red-600 font-bold text-left border border-slate-300 text-sm transition">
+                        ⚡ 매우 셈 (폭우)
+                    </button>
+                    <button onclick="setIntensityPreset(70)" class="preset-btn px-3 py-1.5 rounded-xl bg-slate-800/10 hover:bg-orange-500/20 text-orange-600 font-bold text-left border border-slate-300 text-sm transition">
+                        🌧️ 셈 (강한 비)
+                    </button>
+                    <button onclick="setIntensityPreset(40)" class="preset-btn px-3 py-1.5 rounded-xl bg-slate-800/10 hover:bg-blue-500/20 text-blue-600 font-bold text-left border border-slate-300 text-sm transition">
+                        🌦️ 보통 (보통 비)
+                    </button>
+                    <button onclick="setIntensityPreset(15)" class="preset-btn px-3 py-1.5 rounded-xl bg-slate-800/10 hover:bg-teal-500/20 text-teal-600 font-bold text-left border border-slate-300 text-sm transition">
+                        🌱 약함 (이슬비)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Level Numeric Badge -->
+            <div id="numericBadge" class="mt-4 w-full bg-slate-900/10 rounded-2xl p-3 border border-slate-900/10 flex justify-between items-center transition-all">
+                <span id="numericBadgeLabel" class="text-slate-700 text-xs font-bold">현재 세기 수치:</span>
+                <span id="intensityValueDisplay" class="text-2xl font-black font-jua text-blue-700">15%</span>
+            </div>
+        </section>
+
+        <!-- RIGHT: Activity Guidance & Visual Feedback Card -->
+        <section class="w-full lg:w-2/3 flex flex-col gap-4">
+            
+            <!-- Quick Preset Buttons Bar -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <button onclick="setIntensityPreset(15)" class="p-4 rounded-2xl bg-white/70 border border-teal-300 hover:border-teal-500 transition-all text-center group active:scale-95 shadow-md">
+                    <div class="text-2xl mb-1 group-hover:scale-110 transition-transform">🌱</div>
+                    <div class="font-jua text-teal-700 text-lg">약한 비</div>
+                    <div class="text-[11px] text-slate-500">밝은 하늘 / 잔잔함</div>
+                </button>
+                <button onclick="setIntensityPreset(40)" class="p-4 rounded-2xl bg-white/70 border border-blue-300 hover:border-blue-500 transition-all text-center group active:scale-95 shadow-md">
+                    <div class="text-2xl mb-1 group-hover:scale-110 transition-transform">💧</div>
+                    <div class="font-jua text-blue-700 text-lg">보통 비</div>
+                    <div class="text-[11px] text-slate-500">잿빛 먹구름 / 주룩주룩</div>
+                </button>
+                <button onclick="setIntensityPreset(70)" class="p-4 rounded-2xl bg-white/70 border border-indigo-300 hover:border-indigo-500 transition-all text-center group active:scale-95 shadow-md">
+                    <div class="text-2xl mb-1 group-hover:scale-110 transition-transform">🌧️</div>
+                    <div class="font-jua text-indigo-700 text-lg">강한 비</div>
+                    <div class="text-[11px] text-slate-500">어두운 하늘 / 촤아아</div>
+                </button>
+                <button onclick="setIntensityPreset(95)" class="p-4 rounded-2xl bg-white/70 border border-purple-300 hover:border-purple-500 transition-all text-center group active:scale-95 shadow-md">
+                    <div class="text-2xl mb-1 group-hover:scale-110 transition-transform">⚡</div>
+                    <div class="font-jua text-purple-800 text-lg">폭우 & 천둥</div>
+                    <div class="text-[11px] text-slate-500">깜깜한 밤 / 쿵쾅쾅</div>
+                </button>
+            </div>
+
+            <!-- Activity Guide Banner (Dynamic updates based on level) -->
+            <div id="guideCard" class="bg-white/70 border-2 border-blue-400/50 rounded-3xl p-6 shadow-2xl relative overflow-hidden pulse-activity transition-all duration-500">
+                <div class="flex items-start gap-4">
+                    <div id="guideEmoji" class="text-5xl md:text-6xl p-2 bg-white/60 rounded-2xl border border-slate-200 flex-shrink-0 shadow-inner">
+                        🌱
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span id="guideTitleBadge" class="px-3 py-0.5 rounded-full bg-teal-500/20 text-teal-800 border border-teal-400/30 text-xs font-bold">
+                                약한 비 단계
+                            </span>
+                        </div>
+                        <h3 id="guideActionTitle" class="text-xl md:text-2xl font-black font-jua text-slate-800 mb-2">
+                            "구슬을 아주 살살, 천천히 굴려보아요!"
+                        </h3>
+                        <p id="guideActionDesc" class="text-sm md:text-base text-slate-600 leading-relaxed font-medium">
+                            구름 사이로 살짝 빗방울이 떨어지네요. 트레이를 아주 천천히 살랑살랑 기울여 구슬을 가볍게 움직여봅시다.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Thunder Manual Trigger -->
+                <div class="mt-4 pt-4 border-t border-slate-300/60 flex justify-between items-center">
+                    <span id="guideTipText" class="text-xs text-slate-600 font-bold"><i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> 깜짝 신호 효과:</span>
+                    <button id="thunderBtn" onclick="triggerLightningAndThunder()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 border border-purple-400 text-white font-jua rounded-xl text-sm transition shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-amber-300"></i> 천둥 번개 치기!
+                    </button>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer Section -->
+    <footer id="appFooter" class="relative z-30 w-full p-4 bg-white/30 backdrop-blur-md border-t border-white/20 text-center text-xs text-slate-600 font-medium transition-all">
+        학생 청각 자극 & 신체 구슬 반응 통합 활동 프로그램 | Web Audio Synthesizer (No external sound file required)
+    </footer>
+
+    <script>
+        /* ===================================================================
+           Web Audio API Sound Synthesizer with Multi-Texture Dynamic Audio
+           =================================================================== */
+        let audioCtx = null;
+        let isPlaying = false;
+        
+        // Audio Nodes
+        let noiseNode = null;
+        let biquadFilter = null;
+        let gainNode = null;
+        
+        // High-pass filter for crisp drizzle droplet texture
+        let drizzleFilter = null;
+        let drizzleGain = null;
+        
+        // Low-frequency rumble for heavy rain texture
+        let heavyRumbleFilter = null;
+        let heavyRumbleGain = null;
+
+        // Automatic Thunder Timer for Torrential Rain mode
+        let autoThunderTimer = null;
+
+        // Sound intensity state (0 to 100)
+        let intensity = 15;
+
+        /**
+         * Initializes Web Audio Context & Multi-layered Synthesizer Graph
+         */
+        function initAudio() {
+            if (audioCtx) return;
+
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            // 1. Create Pink/White Noise Buffer (2 seconds looping)
+            const bufferSize = audioCtx.sampleRate * 2;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                // Pink noise algorithm filter
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                output[i] *= 0.11; // Normalize scale
+                b6 = white * 0.115926;
+            }
+
+            // 2. Audio Source Node
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = noiseBuffer;
+            noiseNode.loop = true;
+
+            // 3. Main Lowpass Rain Body Filter
+            biquadFilter = audioCtx.createBiquadFilter();
+            biquadFilter.type = 'lowpass';
+            biquadFilter.frequency.setValueAtTime(800, audioCtx.currentTime);
+
+            // 4. Main Gain Node
+            gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
+
+            // 5. Light Drizzle Highpass Texture Filter
+            drizzleFilter = audioCtx.createBiquadFilter();
+            drizzleFilter.type = 'highpass';
+            drizzleFilter.frequency.setValueAtTime(2200, audioCtx.currentTime);
+
+            drizzleGain = audioCtx.createGain();
+            drizzleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+            // 6. Heavy Rain Low-End Rumble Filter
+            heavyRumbleFilter = audioCtx.createBiquadFilter();
+            heavyRumbleFilter.type = 'bandpass';
+            heavyRumbleFilter.frequency.setValueAtTime(140, audioCtx.currentTime);
+            heavyRumbleFilter.Q.setValueAtTime(1.2, audioCtx.currentTime);
+
+            heavyRumbleGain = audioCtx.createGain();
+            heavyRumbleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+            // Connect Audio Graph
+            noiseNode.connect(biquadFilter);
+            biquadFilter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            noiseNode.connect(drizzleFilter);
+            drizzleFilter.connect(drizzleGain);
+            drizzleGain.connect(audioCtx.destination);
+
+            noiseNode.connect(heavyRumbleFilter);
+            heavyRumbleFilter.connect(heavyRumbleGain);
+            heavyRumbleGain.connect(audioCtx.destination);
+
+            // Start Noise Buffer
+            noiseNode.start(0);
+
+            // Update parameters according to initial intensity
+            updateAudioParameters();
+        }
+
+        /**
+         * Starts or Pauses Audio Output
+         */
+        function toggleAudio() {
+            if (!audioCtx) {
+                initAudio();
+            }
+
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const btnIcon = document.getElementById('audioBtnIcon');
+            const btnText = document.getElementById('audioBtnText');
+            const btn = document.getElementById('audioToggleBtn');
+            const slider = document.getElementById('rainIntensitySlider');
+
+            if (!isPlaying) {
+                isPlaying = true;
+                btnIcon.className = "fa-solid fa-pause";
+                btnText.innerText = "소리 일시정지";
+                btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
+                btn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+                slider.disabled = false;
+                
+                updateAudioParameters();
+            } else {
+                isPlaying = false;
+                btnIcon.className = "fa-solid fa-play";
+                btnText.innerText = "빗소리 시작하기";
+                btn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+                btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
+                
+                if (autoThunderTimer) {
+                    clearInterval(autoThunderTimer);
+                    autoThunderTimer = null;
+                }
+
+                const now = audioCtx.currentTime;
+                gainNode.gain.cancelScheduledValues(now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+
+                drizzleGain.gain.cancelScheduledValues(now);
+                drizzleGain.gain.linearRampToValueAtTime(0, now + 0.3);
+
+                heavyRumbleGain.gain.cancelScheduledValues(now);
+                heavyRumbleGain.gain.linearRampToValueAtTime(0, now + 0.3);
+            }
+        }
+
+        /**
+         * Dynamically adjusts audio textures, filters, and layer gains according to level
+         */
+        function updateAudioParameters() {
+            if (!audioCtx || !gainNode || !biquadFilter) return;
+
+            const now = audioCtx.currentTime;
+            if (!isPlaying) return;
+
+            // 1. Calculate Main Rain Base Parameters
+            const targetGain = 0.02 + (intensity / 100) * 0.65;
+            let targetFreq = 400 + Math.pow(intensity / 100, 1.3) * 3800;
+
+            gainNode.gain.cancelScheduledValues(now);
+            gainNode.gain.linearRampToValueAtTime(targetGain, now + 0.2);
+
+            biquadFilter.frequency.cancelScheduledValues(now);
+            biquadFilter.frequency.linearRampToValueAtTime(targetFreq, now + 0.2);
+
+            // 2. Layering Specific Audio Textures per Rain Level
+            if (intensity <= 25) {
+                // 약한 비
+                drizzleFilter.frequency.linearRampToValueAtTime(3200, now + 0.2);
+                drizzleGain.gain.cancelScheduledValues(now);
+                drizzleGain.gain.linearRampToValueAtTime(0.18, now + 0.2);
+
+                heavyRumbleGain.gain.cancelScheduledValues(now);
+                heavyRumbleGain.gain.linearRampToValueAtTime(0, now + 0.2);
+
+                stopAutoThunder();
+
+            } else if (intensity <= 55) {
+                // 보통 비
+                drizzleFilter.frequency.linearRampToValueAtTime(2400, now + 0.2);
+                drizzleGain.gain.cancelScheduledValues(now);
+                drizzleGain.gain.linearRampToValueAtTime(0.08, now + 0.2);
+
+                heavyRumbleGain.gain.cancelScheduledValues(now);
+                heavyRumbleGain.gain.linearRampToValueAtTime(0.04, now + 0.2);
+
+                stopAutoThunder();
+
+            } else if (intensity <= 80) {
+                // 강한 비
+                drizzleGain.gain.cancelScheduledValues(now);
+                drizzleGain.gain.linearRampToValueAtTime(0.02, now + 0.2);
+
+                heavyRumbleFilter.frequency.linearRampToValueAtTime(180, now + 0.2);
+                heavyRumbleGain.gain.cancelScheduledValues(now);
+                heavyRumbleGain.gain.linearRampToValueAtTime(0.35, now + 0.2);
+
+                stopAutoThunder();
+
+            } else {
+                // 폭우 & 천둥
+                drizzleGain.gain.cancelScheduledValues(now);
+                drizzleGain.gain.linearRampToValueAtTime(0, now + 0.2);
+
+                heavyRumbleFilter.frequency.linearRampToValueAtTime(120, now + 0.2);
+                heavyRumbleGain.gain.cancelScheduledValues(now);
+                heavyRumbleGain.gain.linearRampToValueAtTime(0.65, now + 0.2);
+
+                startAutoThunder();
+            }
+        }
+
+        /**
+         * Starts periodic automatic thunder strikes during Torrential Rain mode
+         */
+        function startAutoThunder() {
+            if (autoThunderTimer || !isPlaying) return;
+            
+            setTimeout(() => {
+                if (intensity > 80 && isPlaying) {
+                    triggerLightningAndThunder();
+                }
+            }, 800);
+
+            autoThunderTimer = setInterval(() => {
+                if (intensity > 80 && isPlaying) {
+                    triggerLightningAndThunder();
+                } else {
+                    stopAutoThunder();
+                }
+            }, Math.floor(Math.random() * 6000) + 6000);
+        }
+
+        function stopAutoThunder() {
+            if (autoThunderTimer) {
+                clearInterval(autoThunderTimer);
+                autoThunderTimer = null;
+            }
+        }
+
+        /**
+         * Simulates a Realistic Thunder Impact Sound + Visual Flash Effect
+         */
+        function triggerLightningAndThunder() {
+            // Visual Flash Effect
+            const overlay = document.getElementById('lightningOverlay');
+            overlay.style.opacity = '0.9';
+            setTimeout(() => { overlay.style.opacity = '0'; }, 100);
+            setTimeout(() => { overlay.style.opacity = '0.6'; }, 220);
+            setTimeout(() => { overlay.style.opacity = '0'; }, 380);
+
+            if (!audioCtx || !isPlaying) return;
+
+            // Deep Rumble Noise Burst
+            const thunderBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 3.0, audioCtx.sampleRate);
+            const data = thunderBuffer.getChannelData(0);
+            for (let i = 0; i < thunderBuffer.length; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.6));
+            }
+
+            const thunderSource = audioCtx.createBufferSource();
+            thunderSource.buffer = thunderBuffer;
+
+            const thunderFilter = audioCtx.createBiquadFilter();
+            thunderFilter.type = 'lowpass';
+            thunderFilter.frequency.setValueAtTime(220, audioCtx.currentTime);
+
+            const tGain = audioCtx.createGain();
+            tGain.gain.setValueAtTime(0.9, audioCtx.currentTime);
+            tGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2.8);
+
+            thunderSource.connect(thunderFilter);
+            thunderFilter.connect(tGain);
+            tGain.connect(audioCtx.destination);
+
+            // High Sharp Crackle
+            const crackleOsc = audioCtx.createOscillator();
+            const crackleGain = audioCtx.createGain();
+            crackleOsc.type = 'sawtooth';
+            crackleOsc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            crackleOsc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.3);
+
+            crackleGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            crackleGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+
+            crackleOsc.connect(crackleGain);
+            crackleGain.connect(audioCtx.destination);
+
+            thunderSource.start(audioCtx.currentTime + 0.05);
+            crackleOsc.start(audioCtx.currentTime);
+            crackleOsc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        /* ===================================================================
+           UI & Weather Theme Controller
+           =================================================================== */
+        function onSliderChange(value) {
+            intensity = parseInt(value, 10);
+            document.getElementById('intensityValueDisplay').innerText = `${intensity}%`;
+            
+            updateAudioParameters();
+            updateActivityUI(intensity);
+            updateWeatherTheme(intensity);
+        }
+
+        function setIntensityPreset(presetValue) {
+            const slider = document.getElementById('rainIntensitySlider');
+            slider.value = presetValue;
+            onSliderChange(presetValue);
+
+            if (!isPlaying) {
+                toggleAudio();
+            }
+
+            if (presetValue >= 85) {
+                setTimeout(triggerLightningAndThunder, 400);
+            }
+        }
+
+        function updateWeatherTheme(val) {
+            const body = document.getElementById('mainBody');
+            const cloudContainer = document.getElementById('cloudContainer');
+            const header = document.getElementById('appHeader');
+            const headerTitle = document.getElementById('headerTitle');
+            const headerSub = document.getElementById('headerSub');
+            const sliderCard = document.getElementById('sliderCard');
+            const sliderTitle = document.getElementById('sliderTitle');
+            const labelStrong = document.getElementById('labelStrong');
+            const labelWeak = document.getElementById('labelWeak');
+            const numericBadge = document.getElementById('numericBadge');
+            const numericBadgeLabel = document.getElementById('numericBadgeLabel');
+            const guideCard = document.getElementById('guideCard');
+            const guideTipText = document.getElementById('guideTipText');
+            const footer = document.getElementById('appFooter');
+
+            if (val <= 25) {
+                body.className = "bg-level-1 min-h-screen flex flex-col justify-between overflow-hidden relative transition-colors duration-1000";
+                
+                header.className = "relative z-30 w-full p-4 md:p-6 bg-white/50 backdrop-blur-md border-b border-white/40 flex justify-between items-center transition-all duration-500";
+                headerTitle.className = "text-xl md:text-2xl font-black font-jua tracking-wide text-slate-800";
+                headerSub.className = "text-xs md:text-sm text-slate-600";
+                
+                sliderCard.className = "w-full lg:w-1/3 bg-white/60 backdrop-blur-md border border-white/60 p-6 rounded-3xl shadow-xl flex flex-col items-center transition-all duration-500";
+                sliderTitle.className = "text-lg md:text-xl font-bold font-jua text-slate-800 mb-4 flex items-center gap-2";
+                labelStrong.className = "text-xs font-bold text-red-600 mb-2";
+                labelWeak.className = "text-xs font-bold text-blue-600 mt-2";
+                
+                numericBadge.className = "mt-4 w-full bg-blue-500/10 rounded-2xl p-3 border border-blue-400/20 flex justify-between items-center transition-all";
+                numericBadgeLabel.className = "text-slate-600 text-xs font-bold";
+                
+                guideCard.className = "bg-white/80 border-2 border-teal-400/60 rounded-3xl p-6 shadow-2xl relative overflow-hidden pulse-activity transition-all duration-500";
+                guideTipText.className = "text-xs text-slate-600 font-bold";
+                footer.className = "relative z-30 w-full p-4 bg-white/40 backdrop-blur-md border-t border-white/30 text-center text-xs text-slate-600 font-medium transition-all";
+
+                cloudContainer.innerHTML = `
+                    <svg class="absolute -top-10 left-[10%] w-72 h-44 fill-white/80 animate-cloud-slow" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                    <svg class="absolute top-10 right-[15%] w-80 h-48 fill-white/60 animate-cloud-fast" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                `;
+
+            } else if (val <= 55) {
+                body.className = "bg-level-2 min-h-screen flex flex-col justify-between overflow-hidden relative transition-colors duration-1000";
+                
+                header.className = "relative z-30 w-full p-4 md:p-6 bg-slate-900/40 backdrop-blur-md border-b border-slate-700/40 flex justify-between items-center transition-all duration-500";
+                headerTitle.className = "text-xl md:text-2xl font-black font-jua tracking-wide text-white";
+                headerSub.className = "text-xs md:text-sm text-slate-200";
+                
+                sliderCard.className = "w-full lg:w-1/3 bg-slate-800/50 backdrop-blur-md border border-slate-600/40 p-6 rounded-3xl shadow-xl flex flex-col items-center transition-all duration-500";
+                sliderTitle.className = "text-lg md:text-xl font-bold font-jua text-white mb-4 flex items-center gap-2";
+                labelStrong.className = "text-xs font-bold text-red-400 mb-2";
+                labelWeak.className = "text-xs font-bold text-blue-300 mt-2";
+                
+                numericBadge.className = "mt-4 w-full bg-slate-900/50 rounded-2xl p-3 border border-slate-600/40 flex justify-between items-center transition-all";
+                numericBadgeLabel.className = "text-slate-300 text-xs font-bold";
+                
+                guideCard.className = "bg-slate-800/70 border-2 border-blue-400/50 rounded-3xl p-6 shadow-2xl relative overflow-hidden pulse-activity transition-all duration-500";
+                guideTipText.className = "text-xs text-slate-300 font-bold";
+                footer.className = "relative z-30 w-full p-4 bg-slate-900/40 backdrop-blur-md border-t border-slate-700/40 text-center text-xs text-slate-300 font-medium transition-all";
+
+                cloudContainer.innerHTML = `
+                    <svg class="absolute -top-12 left-[5%] w-96 h-52 fill-slate-500/70 animate-cloud-slow" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                    <svg class="absolute top-4 right-[8%] w-[28rem] h-60 fill-slate-600/80 animate-cloud-fast" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                `;
+
+            } else if (val <= 80) {
+                body.className = "bg-level-3 min-h-screen flex flex-col justify-between overflow-hidden relative transition-colors duration-1000";
+                
+                header.className = "relative z-30 w-full p-4 md:p-6 bg-slate-900/70 backdrop-blur-md border-b border-slate-700/60 flex justify-between items-center transition-all duration-500";
+                headerTitle.className = "text-xl md:text-2xl font-black font-jua tracking-wide text-blue-100";
+                headerSub.className = "text-xs md:text-sm text-slate-300";
+                
+                sliderCard.className = "w-full lg:w-1/3 bg-slate-900/70 backdrop-blur-md border border-slate-700/60 p-6 rounded-3xl shadow-2xl flex flex-col items-center transition-all duration-500";
+                sliderTitle.className = "text-lg md:text-xl font-bold font-jua text-blue-300 mb-4 flex items-center gap-2";
+                labelStrong.className = "text-xs font-bold text-red-400 mb-2";
+                labelWeak.className = "text-xs font-bold text-blue-300 mt-2";
+                
+                numericBadge.className = "mt-4 w-full bg-slate-950/70 rounded-2xl p-3 border border-slate-800 flex justify-between items-center transition-all";
+                numericBadgeLabel.className = "text-slate-400 text-xs font-bold";
+                
+                guideCard.className = "bg-slate-900/80 border-2 border-indigo-500/60 rounded-3xl p-6 shadow-2xl relative overflow-hidden pulse-activity transition-all duration-500";
+                guideTipText.className = "text-xs text-slate-400 font-bold";
+                footer.className = "relative z-30 w-full p-4 bg-slate-900/70 backdrop-blur-md border-t border-slate-800 text-center text-xs text-slate-400 font-medium transition-all";
+
+                cloudContainer.innerHTML = `
+                    <svg class="absolute -top-16 left-[-5%] w-[36rem] h-64 fill-slate-800/90 animate-cloud-slow" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                    <svg class="absolute top-0 right-[-5%] w-[34rem] h-64 fill-slate-900/90 animate-cloud-fast" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                `;
+
+            } else {
+                body.className = "bg-level-4 min-h-screen flex flex-col justify-between overflow-hidden relative transition-colors duration-1000";
+                
+                header.className = "relative z-30 w-full p-4 md:p-6 bg-slate-950/80 backdrop-blur-md border-b border-purple-900/40 flex justify-between items-center transition-all duration-500";
+                headerTitle.className = "text-xl md:text-2xl font-black font-jua tracking-wide text-purple-200";
+                headerSub.className = "text-xs md:text-sm text-slate-400";
+                
+                sliderCard.className = "w-full lg:w-1/3 bg-slate-950/80 backdrop-blur-md border border-purple-900/50 p-6 rounded-3xl shadow-2xl flex flex-col items-center transition-all duration-500";
+                sliderTitle.className = "text-lg md:text-xl font-bold font-jua text-purple-300 mb-4 flex items-center gap-2";
+                labelStrong.className = "text-xs font-bold text-red-400 mb-2";
+                labelWeak.className = "text-xs font-bold text-cyan-400 mt-2";
+                
+                numericBadge.className = "mt-4 w-full bg-black/60 rounded-2xl p-3 border border-purple-900/40 flex justify-between items-center transition-all";
+                numericBadgeLabel.className = "text-slate-400 text-xs font-bold";
+                
+                guideCard.className = "bg-slate-950/90 border-2 border-purple-500/70 rounded-3xl p-6 shadow-2xl relative overflow-hidden pulse-activity transition-all duration-500";
+                guideTipText.className = "text-xs text-slate-400 font-bold";
+                footer.className = "relative z-30 w-full p-4 bg-slate-950/80 backdrop-blur-md border-t border-purple-900/30 text-center text-xs text-slate-500 font-medium transition-all";
+
+                cloudContainer.innerHTML = `
+                    <svg class="absolute -top-20 left-[-10%] w-[42rem] h-80 fill-slate-950 animate-cloud-slow" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                    <svg class="absolute -top-10 right-[-10%] w-[40rem] h-80 fill-purple-950/80 animate-cloud-fast" viewBox="0 0 100 100"><path d="M20 60 a20 20 0 0 1 30 -15 a25 25 0 0 1 40 10 a15 15 0 0 1 0 30 h-70 a15 15 0 0 1 0 -25 z"/></svg>
+                `;
+            }
+        }
+
+        function updateActivityUI(val) {
+            const guideEmoji = document.getElementById('guideEmoji');
+            const guideTitleBadge = document.getElementById('guideTitleBadge');
+            const guideActionTitle = document.getElementById('guideActionTitle');
+            const guideActionDesc = document.getElementById('guideActionDesc');
+
+            if (val <= 25) {
+                guideEmoji.innerText = '🌱';
+                guideTitleBadge.innerText = '약한 비 단계';
+                guideTitleBadge.className = 'px-3 py-0.5 rounded-full bg-teal-500/20 text-teal-700 border border-teal-400/30 text-xs font-bold';
+                guideActionTitle.innerText = '"구슬을 아주 살살, 살랑살랑 굴려보아요!"';
+                guideActionDesc.innerText = '밝은 하늘에 부드럽게 비가 내려요. 트레이를 천천히 기우려서 구슬이 조용히 굴러가도록 살짝만 흔들어보세요.';
+            } else if (val <= 55) {
+                guideEmoji.innerText = '💧';
+                guideTitleBadge.innerText = '보통 비 단계';
+                guideTitleBadge.className = 'px-3 py-0.5 rounded-full bg-blue-500/20 text-blue-700 border border-blue-400/30 text-xs font-bold';
+                guideActionTitle.innerText = '"리듬에 맞춰 구슬을 차방차방 흔들어보아요!"';
+                guideActionDesc.innerText = '먹구름이 끼고 빗소리가 일정하게 내려요. 박자에 맞춰 구슬 트레이를 이쪽저쪽 리드미컬하게 흔들어 물감을 묻혀봅시다.';
+            } else if (val <= 80) {
+                guideEmoji.innerText = '🌧️';
+                guideTitleBadge.innerText = '강한 비 단계';
+                guideTitleBadge.className = 'px-3 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-xs font-bold';
+                guideActionTitle.innerText = '"구슬을 빠르게 촤르륵! 신나게 흔들어요!"';
+                guideActionDesc.innerText = '하늘이 어두워지고 비가 거세게 퍼붓고 있어요! 구슬들이 신나게 부딪히도록 트레이를 양손으로 빠르게 움직여 표현해요!';
+            } else {
+                guideEmoji.innerText = '⚡';
+                guideTitleBadge.innerText = '폭우 & 천둥 단계';
+                guideTitleBadge.className = 'px-3 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30 text-xs font-bold';
+                guideActionTitle.innerText = '"쿵쾅쿵쾅! 힘차고 역동적으로 흔들어요!"';
+                guideActionDesc.innerText = '깜깜한 폭풍우 속 강렬한 폭우와 천둥 소리가 들려요! 구슬 트레이를 크고 세게 흔들어 역동적이고 멋진 물감 자국을 완성해보세요!';
+            }
+        }
+
+        /* ===================================================================
+           Dynamic Canvas Rain Particle Animation System
+           =================================================================== */
+        const canvas = document.getElementById('rainCanvas');
+        const ctx = canvas.getContext('2d');
+        let raindrops = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        class Raindrop {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * -canvas.height;
+                this.length = Math.random() * 15 + 10;
+                this.speed = Math.random() * 8 + 6;
+                this.opacity = Math.random() * 0.5 + 0.3;
+                this.thickness = Math.random() * 1.5 + 1;
+            }
+
+            update() {
+                const speedMult = 0.5 + (intensity / 100) * 1.8;
+                this.y += this.speed * speedMult;
+                
+                if (this.y > canvas.height) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x, this.y + this.length * (1 + intensity / 100));
+                
+                if (intensity <= 25) {
+                    ctx.strokeStyle = `rgba(59, 130, 246, ${this.opacity * 0.6})`;
+                } else if (intensity <= 55) {
+                    ctx.strokeStyle = `rgba(186, 230, 253, ${this.opacity * 0.7})`;
+                } else if (intensity <= 80) {
+                    ctx.strokeStyle = `rgba(224, 242, 254, ${this.opacity * 0.85})`;
+                } else {
+                    ctx.strokeStyle = `rgba(243, 232, 255, ${this.opacity})`;
+                }
+
+                ctx.lineWidth = this.thickness * (0.8 + intensity / 100 * 0.8);
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+        }
+
+        function initRain() {
+            resizeCanvas();
+            raindrops = [];
+            for (let i = 0; i < 250; i++) {
+                raindrops.push(new Raindrop());
+            }
+        }
+
+        function animateRain() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const activeCount = Math.floor(15 + (intensity / 100) * 235);
+            
+            for (let i = 0; i < activeCount; i++) {
+                if (raindrops[i]) {
+                    raindrops[i].update();
+                    raindrops[i].draw();
+                }
+            }
+            requestAnimationFrame(animateRain);
+        }
+
+        window.onload = function() {
+            initRain();
+            animateRain();
+            onSliderChange(15);
+        };
+    </script>
+</body>
+</html>
